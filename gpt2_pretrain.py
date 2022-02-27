@@ -8,8 +8,8 @@ import os
 import torch
 from torch.cuda.amp import autocast
 from tqdm import tqdm
-from transformers import HfArgumentParser, set_seed, AdamW, get_linear_schedule_with_warmup, BertConfig, BertTokenizer, \
-    BertForPreTraining, GPT2Config, GPT2LMHeadModel
+from transformers import HfArgumentParser, set_seed, AdamW, get_linear_schedule_with_warmup, BertTokenizer, \
+    GPT2Config, GPT2LMHeadModel
 
 from transformers4ime.data.arguments import MMModelArguments, MMDataTrainingArguments, MMTrainingArguments
 from transformers4ime.data.loaders import MM_LOADERS
