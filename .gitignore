@@ -1,0 +1,6 @@
+.idea
+__pycache__
+/data/
+taiji/tokens.txt
+taiji/pinyingpt_eval/
+taiji/pinyingpt_train/
