@@ -26,11 +26,12 @@ class IMETextOnlyDataLoader(IMEBaseDataLoader):
         self.shards = self.get_shards(self.data_args.train_text_only_files)
         self.batch_size = self.training_args.text_only_per_device_train_batch_size
         self.max_len = self.data_args.text_only_block_size
+        self.n_ctx = self.config.n_ctx
 
     def build_sample(self, example):
         context_ids = self.tokenizer(example['content'], add_special_tokens=False)['input_ids']
-        if len(context_ids) + 2 > self.config.max_length:
-            context_ids = context_ids[:self.config.max_length - 2]
+        if len(context_ids) + 2 > self.n_ctx:
+            context_ids = context_ids[:self.n_ctx - 2]
 
         label_ids = [idx if idx > 0 else -100 for idx in context_ids]
 
