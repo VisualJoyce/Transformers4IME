@@ -177,7 +177,7 @@ def main():
                     pbar.update(1)
 
                     TB_LOGGER.add_scalar('train/grad_norm', total_norm, global_step)
-                    TB_LOGGER.add_scalar('train/loss', loss.item(), global_step)
+                    TB_LOGGER.add_scalar('train/loss', outputs.loss.item(), global_step)
                     for k, v in train_data.all_epochs.items():
                         TB_LOGGER.add_scalar(f'train_epoch/{k}', v, global_step)
                     for gid, group in enumerate(optimizer.param_groups):
