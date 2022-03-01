@@ -55,8 +55,8 @@ def get_pinyin_with_mode(words, abbr_mode):
     return pinyin
 
 
-def get_pinyin_to_char(tokenizer, opts):
-    with open(opts.pinyin2char_json) as f:
+def get_pinyin_to_char(tokenizer, pinyin2char_json, pinyin_logits_processor_cls):
+    with open(pinyin2char_json) as f:
         pinyin2char = json.load(f)
 
     # pinyin2char = {}
@@ -70,7 +70,7 @@ def get_pinyin_to_char(tokenizer, opts):
     #             pinyin2char.setdefault(p[:-1], set())
     #             pinyin2char[p[:-1]].add(w)
 
-    if opts.pinyin_logits_processor_cls == 'pinyin-cpm-compatible':
+    if pinyin_logits_processor_cls == 'pinyin-cpm-compatible':
         df_vocab = pda.DataFrame(tokenizer.convert_ids_to_tokens(range(len(tokenizer.get_vocab()))), columns=['word'])
         df_vocab = df_vocab.assign(
             char=df_vocab.word.apply(lambda x: x[1] if x.startswith('▁') and len(x) > 1 else x[0]),

@@ -36,6 +36,27 @@ class MMModelArguments:
         },
     )
 
+    additional_special_tokens: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "The model checkpoint for weights initialization. Leave None if you want to train a model from scratch."
+        },
+    )
+
+    pinyin2char_json: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "The model checkpoint for weights initialization. Leave None if you want to train a model from scratch."
+        },
+    )
+
+    pinyin_logits_processor_cls: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "The model checkpoint for weights initialization. Leave None if you want to train a model from scratch."
+        },
+    )
+
 
 @dataclass
 class MMDataTrainingArguments:
@@ -181,6 +202,12 @@ class MMDataTrainingArguments:
         },
     )
 
+    text_pinyin_block_size: int = field(
+        default=256,
+        metadata={
+        },
+    )
+
     code_text_block_size: int = field(
         default=512,
         metadata={
@@ -250,6 +277,13 @@ class MMDataTrainingArguments:
     video_text_block_size: int = field(
         default=128,
         metadata={
+        },
+    )
+
+    annotator_tagger: Optional[str] = field(
+        default="pkuseg",
+        metadata={
+            "help": "The model checkpoint for weights initialization. Leave None if you want to train a model from scratch."
         },
     )
 

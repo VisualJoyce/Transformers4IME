@@ -1226,9 +1226,8 @@ class PinyinGPTModel(PinyinGPTPreTrainedModel):
 class PinyinGPTLMHeadModel(PinyinGPTPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"attn.masked_bias", r"attn.bias", r"lm_head.weight"]
 
-    def __init__(self, config, opts):
+    def __init__(self, config):
         super().__init__(config)
-        self.opts = opts
         self.transformer = PinyinGPTModel(config)
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
@@ -1385,8 +1384,8 @@ class PinyinGPTLMHeadModel(PinyinGPTPreTrainedModel):
 @register_model('pinyingpt-compatible')
 class PinyinGPTCompatibleLMHeadModel(PinyinGPTLMHeadModel):
 
-    def __init__(self, config, opts):
-        super().__init__(config, opts)
+    def __init__(self, config):
+        super().__init__(config)
 
     def prepare_inputs_for_generation(self, input_ids, past=None, **kwargs):
         # a = (input_ids == self.opts.sep_token_id).long()
@@ -1505,11 +1504,8 @@ class PinyinGPTCompatibleLMHeadModel(PinyinGPTLMHeadModel):
 @register_model('pinyingpt-concat')
 class PinyinGPTConcatLMHeadModel(PinyinGPTLMHeadModel):
 
-    def __init__(self, config, opts):
-        super().__init__(config, opts)
-        if self.opts.gpt2_fixed:
-            self.pye = nn.Embedding(opts.pinyin_vocab_size, self.transformer.embed_dim)
-            self.init_weights()
+    def __init__(self, config):
+        super().__init__(config)
 
     def prepare_inputs_for_generation_finetune(self, input_ids, past=None, **kwargs):
         # print(kwargs)
@@ -1581,10 +1577,7 @@ class PinyinGPTConcatLMHeadModel(PinyinGPTLMHeadModel):
         }
 
     def prepare_inputs_for_generation(self, input_ids, past=None, **kwargs):
-        if self.opts.gpt2_fixed:
-            return self.prepare_inputs_for_generation_fixed(input_ids, past, **kwargs)
-        else:
-            return self.prepare_inputs_for_generation_finetune(input_ids, past, **kwargs)
+        return self.prepare_inputs_for_generation_finetune(input_ids, past, **kwargs)
 
     @add_start_docstrings_to_model_forward(GPT2_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
@@ -1620,14 +1613,6 @@ class PinyinGPTConcatLMHeadModel(PinyinGPTLMHeadModel):
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if self.opts.gpt2_fixed:
-            inputs_word_embeds = self.transformer.wte(input_ids)
-            inputs_pinyin_embeds = self.pye(pinyin_ids)
-
-            pinyin_masks = pinyin_masks.unsqueeze(-1).repeat(1, 1, inputs_word_embeds.size(-1))
-            inputs_embeds = pinyin_masks * inputs_pinyin_embeds + (1 - pinyin_masks) * inputs_word_embeds
-            input_ids = None
-
         transformer_outputs = self.transformer(
             input_ids,
             past_key_values=past_key_values,
@@ -1654,25 +1639,17 @@ class PinyinGPTConcatLMHeadModel(PinyinGPTLMHeadModel):
 
         loss = None
         if labels is not None:
-            if self.opts.loss_mode == 'pcloss':
-                # print(lm_logits.size(), gather_index.size())
-                # print(gathered_logits.size())
-                # Shift so that tokens < n predict n
-                shift_logits = lm_logits[..., :-1, :].contiguous()
-                shift_labels = labels[..., 1:].contiguous()
-                gathered_logits = torch.gather(shift_logits, index=gather_index, dim=2)
-                gathered_logits = gathered_logits.where(gather_index > 0, torch.ones_like(gathered_logits) * 1e-4)
-                # Flatten the tokens
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(gathered_logits.view(-1, gathered_logits.size(-1)), shift_labels.view(-1))
-                # loss = loss_fct(gathered_logits.view(-1, gathered_logits.size(-1)), labels.view(-1))
-            else:
-                # Shift so that tokens < n predict n
-                shift_logits = lm_logits[..., :-1, :].contiguous()
-                shift_labels = labels[..., 1:].contiguous()
-                # Flatten the tokens
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            # print(lm_logits.size(), gather_index.size())
+            # print(gathered_logits.size())
+            # Shift so that tokens < n predict n
+            shift_logits = lm_logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            gathered_logits = torch.gather(shift_logits, index=gather_index, dim=2)
+            gathered_logits = gathered_logits.where(gather_index > 0, torch.ones_like(gathered_logits) * 1e-4)
+            # Flatten the tokens
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(gathered_logits.view(-1, gathered_logits.size(-1)), shift_labels.view(-1))
+            # loss = loss_fct(gathered_logits.view(-1, gathered_logits.size(-1)), labels.view(-1))
 
         if not return_dict:
             output = (lm_logits,) + transformer_outputs[1:]
