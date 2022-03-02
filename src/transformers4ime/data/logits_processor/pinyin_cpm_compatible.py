@@ -2,10 +2,7 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 from transformers import LogitsProcessor
 
-from transformers4ime.data.logits_processor import register_logits_processor
 
-
-@register_logits_processor("pinyin-cpm-compatible")
 class PinyinCPMCompatibleLogitsProcessor(LogitsProcessor):
     r"""
     :class:`transformers.LogitsProcessor` enforcing an exponential penalty on repeated sequences.

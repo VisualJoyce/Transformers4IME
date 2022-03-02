@@ -1,10 +1,9 @@
 import torch
 from torch.nn.utils.rnn import pad_sequence
 
-from transformers4ime.data.logits_processor import register_logits_processor, ConstrainedLogitsProcessor
+from transformers4ime.data.logits_processor import ConstrainedLogitsProcessor
 
 
-@register_logits_processor("pinyingpt-compatible")
 class PinyinGPTCompatibleLogitsProcessor(ConstrainedLogitsProcessor):
     r"""
     :class:`transformers.LogitsProcessor` enforcing an exponential penalty on repeated sequences.

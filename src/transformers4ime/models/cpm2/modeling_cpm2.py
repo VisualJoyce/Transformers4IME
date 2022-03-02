@@ -1,20 +1,14 @@
 import math
-from typing import Tuple, Callable, List
+from typing import Tuple
 
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
-from transformers import PreTrainedModel, LogitsProcessorList
-from transformers.generation_logits_process import EncoderNoRepeatNGramLogitsProcessor, \
-    PrefixConstrainedLogitsProcessor, ForcedBOSTokenLogitsProcessor, ForcedEOSTokenLogitsProcessor, \
-    InfNanRemoveLogitsProcessor, MinLengthLogitsProcessor, HammingDiversityLogitsProcessor, \
-    RepetitionPenaltyLogitsProcessor, NoRepeatNGramLogitsProcessor, NoBadWordsLogitsProcessor
+from transformers import PreTrainedModel
 from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
 
-from transformers4ime.data.logits_processor import LOGITS_PROCESSOR_REGISTRY
 from transformers4ime.models import register_model
 from transformers4ime.models.cpm2.configuration_cpm2 import CPM2Config
-from transformers4ime.utils.logger import LOGGER
 
 
 class MLP(nn.Module):
@@ -312,90 +306,3 @@ class PinyinGPT2CompatibleCPMModel(CPM2Model):
             # "attention_mask": attention_mask,
             # "token_type_ids": token_type_ids,
         }
-
-    def _get_logits_processor(
-            self,
-            repetition_penalty: float,
-            no_repeat_ngram_size: int,
-            encoder_no_repeat_ngram_size: int,
-            encoder_input_ids: torch.LongTensor,
-            bad_words_ids: List[List[int]],
-            min_length: int,
-            max_length: int,
-            eos_token_id: int,
-            forced_bos_token_id: int,
-            forced_eos_token_id: int,
-            prefix_allowed_tokens_fn: Callable[[int, torch.Tensor], List[int]],
-            num_beams: int,
-            num_beam_groups: int,
-            diversity_penalty: float,
-            remove_invalid_values: bool,
-    ) -> LogitsProcessorList:
-        """
-        This class returns a :obj:`~transformers.LogitsProcessorList` list object that contains all relevant
-        :obj:`~transformers.LogitsProcessor` instances used to modify the scores of the language model head.
-        """
-        processors = LogitsProcessorList()
-
-        # init warp parameters
-        repetition_penalty = repetition_penalty if repetition_penalty is not None else self.config.repetition_penalty
-        no_repeat_ngram_size = (
-            no_repeat_ngram_size if no_repeat_ngram_size is not None else self.config.no_repeat_ngram_size
-        )
-        encoder_no_repeat_ngram_size = (
-            encoder_no_repeat_ngram_size
-            if encoder_no_repeat_ngram_size is not None
-            else self.config.encoder_no_repeat_ngram_size
-        )
-        bad_words_ids = bad_words_ids if bad_words_ids is not None else self.config.bad_words_ids
-        min_length = min_length if min_length is not None else self.config.min_length
-        eos_token_id = eos_token_id if eos_token_id is not None else self.config.eos_token_id
-        diversity_penalty = diversity_penalty if diversity_penalty is not None else self.config.diversity_penalty
-        forced_bos_token_id = (
-            forced_bos_token_id if forced_bos_token_id is not None else self.config.forced_bos_token_id
-        )
-        forced_eos_token_id = (
-            forced_eos_token_id if forced_eos_token_id is not None else self.config.forced_eos_token_id
-        )
-        remove_invalid_values = (
-            remove_invalid_values if remove_invalid_values is not None else self.config.remove_invalid_values
-        )
-        # instantiate processors list
-
-        # the following idea is largely copied from this PR: https://github.com/huggingface/transformers/pull/5420/files
-        # all samplers can be found in `generation_utils_samplers.py`
-        if diversity_penalty is not None and diversity_penalty > 0.0:
-            processors.append(
-                HammingDiversityLogitsProcessor(
-                    diversity_penalty=diversity_penalty, num_beams=num_beams, num_beam_groups=num_beam_groups
-                )
-            )
-        if repetition_penalty is not None and repetition_penalty != 1.0:
-            processors.append(RepetitionPenaltyLogitsProcessor(penalty=repetition_penalty))
-        if no_repeat_ngram_size is not None and no_repeat_ngram_size > 0:
-            processors.append(NoRepeatNGramLogitsProcessor(no_repeat_ngram_size))
-        if encoder_no_repeat_ngram_size is not None and encoder_no_repeat_ngram_size > 0:
-            if self.config.is_encoder_decoder:
-                processors.append(EncoderNoRepeatNGramLogitsProcessor(encoder_no_repeat_ngram_size, encoder_input_ids))
-            else:
-                raise ValueError(
-                    "It's impossible to use `encoder_no_repeat_ngram_size` with decoder-only architecture"
-                )
-        if bad_words_ids is not None:
-            processors.append(NoBadWordsLogitsProcessor(bad_words_ids, eos_token_id))
-        if min_length is not None and eos_token_id is not None and min_length > -1:
-            processors.append(MinLengthLogitsProcessor(min_length, eos_token_id))
-        if prefix_allowed_tokens_fn is not None:
-            processors.append(PrefixConstrainedLogitsProcessor(prefix_allowed_tokens_fn, num_beams // num_beam_groups))
-        if forced_bos_token_id is not None:
-            processors.append(ForcedBOSTokenLogitsProcessor(forced_bos_token_id))
-        if forced_eos_token_id is not None:
-            processors.append(ForcedEOSTokenLogitsProcessor(max_length, forced_eos_token_id))
-        if remove_invalid_values is True:
-            processors.append(InfNanRemoveLogitsProcessor())
-
-        processors.append(
-            LOGITS_PROCESSOR_REGISTRY['pinyin-cpm-compatible'](self.opts.sep_token_id,
-                                                               self.opts.pc_df,
-                                                               pad_token_id=self.opts.pad_token_id))
-        return processors

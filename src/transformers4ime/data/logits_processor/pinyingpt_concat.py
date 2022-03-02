@@ -1,10 +1,9 @@
 import torch
 from torch.nn.utils.rnn import pad_sequence
 
-from transformers4ime.data.logits_processor import register_logits_processor, ConstrainedLogitsProcessor
+from transformers4ime.data.logits_processor import ConstrainedLogitsProcessor
 
 
-@register_logits_processor("pinyingpt-concat")
 class PinyinGPTConcatLogitsProcessor(ConstrainedLogitsProcessor):
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, constraint_id) -> torch.FloatTensor:

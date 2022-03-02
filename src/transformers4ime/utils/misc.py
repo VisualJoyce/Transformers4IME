@@ -225,17 +225,17 @@ def construct_model(model_cls, opts):
         if model_cls == 'gpt2':
             # Prepare model
             try:
-                model = PinyinGPTLMHeadModel.from_pretrained(opts.pretrained_model_name_or_path, opts=opts)
+                model = PinyinGPTLMHeadModel.from_pretrained(opts.pretrained_model_name_or_path)
             except OSError:
                 config = PinyinGPTConfig.from_pretrained(opts.pretrained_model_name_or_path)  # config as in the paper
                 model = PinyinGPTLMHeadModel(config, opts=opts)
         elif model_cls == 'pinyingpt-concat':
-            model = MODEL_REGISTRY['pinyingpt-concat'].from_pretrained(opts.pretrained_model_name_or_path, opts=opts)
+            model = MODEL_REGISTRY['pinyingpt-concat'].from_pretrained(opts.pretrained_model_name_or_path)
             model.resize_token_embeddings(len(tokenizer))
         else:
             ModelCls = MODEL_REGISTRY[model_cls]
             # Prepare model
-            model = ModelCls.from_pretrained(opts.pretrained_model_name_or_path, opts=opts)
+            model = ModelCls.from_pretrained(opts.pretrained_model_name_or_path)
 
     if opts.gpt2_fixed:
         for param in model.transformer.parameters():
@@ -244,7 +244,7 @@ def construct_model(model_cls, opts):
     opts.additional_special_tokens = additional_special_tokens
     opts.sep_token_id = tokenizer.sep_token_id
     opts.pad_token_id = tokenizer.pad_token_id
-    opts.pc_df = get_pinyin_to_char(tokenizer, opts)
+    opts.pc_df = get_pinyin_to_char(tokenizer, opts.pinyin2char_json, opts.pinyin_logits_processor_cls)
     opts.pinyin_start_id = tokenizer.convert_tokens_to_ids(additional_special_tokens[0])
     opts.tokenizer = tokenizer
     LOGGER.info(model)

@@ -18,7 +18,7 @@
 import os
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Tuple, List, Callable, Dict, Any, Union
+from typing import Optional, Tuple, Dict, Any, Union
 
 import torch
 import torch.distributed as dist
@@ -33,11 +33,7 @@ from transformers.file_utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
 )
-from transformers.generation_logits_process import LogitsProcessorList, HammingDiversityLogitsProcessor, \
-    RepetitionPenaltyLogitsProcessor, \
-    NoRepeatNGramLogitsProcessor, NoBadWordsLogitsProcessor, MinLengthLogitsProcessor, PrefixConstrainedLogitsProcessor, \
-    ForcedBOSTokenLogitsProcessor, ForcedEOSTokenLogitsProcessor, InfNanRemoveLogitsProcessor, \
-    EncoderNoRepeatNGramLogitsProcessor
+from transformers.generation_logits_process import LogitsProcessorList, MinLengthLogitsProcessor
 from transformers.generation_stopping_criteria import validate_stopping_criteria
 from transformers.generation_utils import BeamSearchOutput, BeamSearchEncoderDecoderOutput, BeamSearchDecoderOnlyOutput
 from transformers.modeling_outputs import (
@@ -55,7 +51,6 @@ from transformers.utils.model_parallel_utils import assert_device_map, get_devic
 
 from .configuration_pinyingpt import PinyinGPTConfig
 from .. import register_model
-from ...data.logits_processor import LOGITS_PROCESSOR_REGISTRY
 
 logger = logging.get_logger(__name__)
 
@@ -395,92 +390,94 @@ class PinyinGPTPreTrainedModel(PreTrainedModel):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
-    def _get_logits_processor(
-            self,
-            repetition_penalty: float,
-            no_repeat_ngram_size: int,
-            encoder_no_repeat_ngram_size: int,
-            encoder_input_ids: torch.LongTensor,
-            bad_words_ids: List[List[int]],
-            min_length: int,
-            max_length: int,
-            eos_token_id: int,
-            forced_bos_token_id: int,
-            forced_eos_token_id: int,
-            prefix_allowed_tokens_fn: Callable[[int, torch.Tensor], List[int]],
-            num_beams: int,
-            num_beam_groups: int,
-            diversity_penalty: float,
-            remove_invalid_values: bool,
-    ) -> LogitsProcessorList:
-        """
-        This class returns a :obj:`~transformers.LogitsProcessorList` list object that contains all relevant
-        :obj:`~transformers.LogitsProcessor` instances used to modify the scores of the language model head.
-        """
-        processors = LogitsProcessorList()
-
-        # init warp parameters
-        repetition_penalty = repetition_penalty if repetition_penalty is not None else self.config.repetition_penalty
-        no_repeat_ngram_size = (
-            no_repeat_ngram_size if no_repeat_ngram_size is not None else self.config.no_repeat_ngram_size
-        )
-        encoder_no_repeat_ngram_size = (
-            encoder_no_repeat_ngram_size
-            if encoder_no_repeat_ngram_size is not None
-            else self.config.encoder_no_repeat_ngram_size
-        )
-        bad_words_ids = bad_words_ids if bad_words_ids is not None else self.config.bad_words_ids
-        min_length = min_length if min_length is not None else self.config.min_length
-        eos_token_id = eos_token_id if eos_token_id is not None else self.config.eos_token_id
-        diversity_penalty = diversity_penalty if diversity_penalty is not None else self.config.diversity_penalty
-        forced_bos_token_id = (
-            forced_bos_token_id if forced_bos_token_id is not None else self.config.forced_bos_token_id
-        )
-        forced_eos_token_id = (
-            forced_eos_token_id if forced_eos_token_id is not None else self.config.forced_eos_token_id
-        )
-        remove_invalid_values = (
-            remove_invalid_values if remove_invalid_values is not None else self.config.remove_invalid_values
-        )
-        # instantiate processors list
-
-        # the following idea is largely copied from this PR: https://github.com/huggingface/transformers/pull/5420/files
-        # all samplers can be found in `generation_utils_samplers.py`
-        if diversity_penalty is not None and diversity_penalty > 0.0:
-            processors.append(
-                HammingDiversityLogitsProcessor(
-                    diversity_penalty=diversity_penalty, num_beams=num_beams, num_beam_groups=num_beam_groups
-                )
-            )
-        if repetition_penalty is not None and repetition_penalty != 1.0:
-            processors.append(RepetitionPenaltyLogitsProcessor(penalty=repetition_penalty))
-        if no_repeat_ngram_size is not None and no_repeat_ngram_size > 0:
-            processors.append(NoRepeatNGramLogitsProcessor(no_repeat_ngram_size))
-        if encoder_no_repeat_ngram_size is not None and encoder_no_repeat_ngram_size > 0:
-            if self.config.is_encoder_decoder:
-                processors.append(EncoderNoRepeatNGramLogitsProcessor(encoder_no_repeat_ngram_size, encoder_input_ids))
-            else:
-                raise ValueError(
-                    "It's impossible to use `encoder_no_repeat_ngram_size` with decoder-only architecture"
-                )
-        if bad_words_ids is not None:
-            processors.append(NoBadWordsLogitsProcessor(bad_words_ids, eos_token_id))
-        if min_length is not None and eos_token_id is not None and min_length > -1:
-            processors.append(MinLengthLogitsProcessor(min_length, eos_token_id))
-        if prefix_allowed_tokens_fn is not None:
-            processors.append(PrefixConstrainedLogitsProcessor(prefix_allowed_tokens_fn, num_beams // num_beam_groups))
-        if forced_bos_token_id is not None:
-            processors.append(ForcedBOSTokenLogitsProcessor(forced_bos_token_id))
-        if forced_eos_token_id is not None:
-            processors.append(ForcedEOSTokenLogitsProcessor(max_length, forced_eos_token_id))
-        if remove_invalid_values is True:
-            processors.append(InfNanRemoveLogitsProcessor())
-
-        pinyin_logits_processor_cls = 'gpt2' if self.opts is None else self.opts.pinyin_logits_processor_cls
-
-        processors.append(
-            LOGITS_PROCESSOR_REGISTRY[pinyin_logits_processor_cls](self.opts.sep_token_id, self.opts.pc_df))
-        return processors
+    # @overrides
+    # def _get_logits_processor(
+    #         self,
+    #         repetition_penalty: float,
+    #         no_repeat_ngram_size: int,
+    #         encoder_no_repeat_ngram_size: int,
+    #         encoder_input_ids: torch.LongTensor,
+    #         bad_words_ids: List[List[int]],
+    #         min_length: int,
+    #         max_length: int,
+    #         eos_token_id: int,
+    #         forced_bos_token_id: int,
+    #         forced_eos_token_id: int,
+    #         prefix_allowed_tokens_fn: Callable[[int, torch.Tensor], List[int]],
+    #         num_beams: int,
+    #         num_beam_groups: int,
+    #         diversity_penalty: float,
+    #         remove_invalid_values: bool,
+    #         logits_processor: Optional[LogitsProcessorList],
+    # ) -> LogitsProcessorList:
+    #     """
+    #     This class returns a :obj:`~transformers.LogitsProcessorList` list object that contains all relevant
+    #     :obj:`~transformers.LogitsProcessor` instances used to modify the scores of the language model head.
+    #     """
+    #     processors = LogitsProcessorList()
+    #
+    #     # init warp parameters
+    #     repetition_penalty = repetition_penalty if repetition_penalty is not None else self.config.repetition_penalty
+    #     no_repeat_ngram_size = (
+    #         no_repeat_ngram_size if no_repeat_ngram_size is not None else self.config.no_repeat_ngram_size
+    #     )
+    #     encoder_no_repeat_ngram_size = (
+    #         encoder_no_repeat_ngram_size
+    #         if encoder_no_repeat_ngram_size is not None
+    #         else self.config.encoder_no_repeat_ngram_size
+    #     )
+    #     bad_words_ids = bad_words_ids if bad_words_ids is not None else self.config.bad_words_ids
+    #     min_length = min_length if min_length is not None else self.config.min_length
+    #     eos_token_id = eos_token_id if eos_token_id is not None else self.config.eos_token_id
+    #     diversity_penalty = diversity_penalty if diversity_penalty is not None else self.config.diversity_penalty
+    #     forced_bos_token_id = (
+    #         forced_bos_token_id if forced_bos_token_id is not None else self.config.forced_bos_token_id
+    #     )
+    #     forced_eos_token_id = (
+    #         forced_eos_token_id if forced_eos_token_id is not None else self.config.forced_eos_token_id
+    #     )
+    #     remove_invalid_values = (
+    #         remove_invalid_values if remove_invalid_values is not None else self.config.remove_invalid_values
+    #     )
+    #     # instantiate processors list
+    #
+    #     # the following idea is largely copied from this PR: https://github.com/huggingface/transformers/pull/5420/files
+    #     # all samplers can be found in `generation_utils_samplers.py`
+    #     if diversity_penalty is not None and diversity_penalty > 0.0:
+    #         processors.append(
+    #             HammingDiversityLogitsProcessor(
+    #                 diversity_penalty=diversity_penalty, num_beams=num_beams, num_beam_groups=num_beam_groups
+    #             )
+    #         )
+    #     if repetition_penalty is not None and repetition_penalty != 1.0:
+    #         processors.append(RepetitionPenaltyLogitsProcessor(penalty=repetition_penalty))
+    #     if no_repeat_ngram_size is not None and no_repeat_ngram_size > 0:
+    #         processors.append(NoRepeatNGramLogitsProcessor(no_repeat_ngram_size))
+    #     if encoder_no_repeat_ngram_size is not None and encoder_no_repeat_ngram_size > 0:
+    #         if self.config.is_encoder_decoder:
+    #             processors.append(EncoderNoRepeatNGramLogitsProcessor(encoder_no_repeat_ngram_size, encoder_input_ids))
+    #         else:
+    #             raise ValueError(
+    #                 "It's impossible to use `encoder_no_repeat_ngram_size` with decoder-only architecture"
+    #             )
+    #     if bad_words_ids is not None:
+    #         processors.append(NoBadWordsLogitsProcessor(bad_words_ids, eos_token_id))
+    #     if min_length is not None and eos_token_id is not None and min_length > -1:
+    #         processors.append(MinLengthLogitsProcessor(min_length, eos_token_id))
+    #     if prefix_allowed_tokens_fn is not None:
+    #         processors.append(PrefixConstrainedLogitsProcessor(prefix_allowed_tokens_fn, num_beams // num_beam_groups))
+    #     if forced_bos_token_id is not None:
+    #         processors.append(ForcedBOSTokenLogitsProcessor(forced_bos_token_id))
+    #     if forced_eos_token_id is not None:
+    #         processors.append(ForcedEOSTokenLogitsProcessor(max_length, forced_eos_token_id))
+    #     if remove_invalid_values is True:
+    #         processors.append(InfNanRemoveLogitsProcessor())
+    #
+    #     pinyin_logits_processor_cls = 'gpt2' if self.opts is None else self.opts.pinyin_logits_processor_cls
+    #
+    #     processors.append(
+    #         LOGITS_PROCESSOR_REGISTRY[pinyin_logits_processor_cls](self.opts.sep_token_id, self.opts.pc_df))
+    #     return processors
 
     def beam_search(
             self,

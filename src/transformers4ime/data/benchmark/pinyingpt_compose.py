@@ -4,8 +4,10 @@ Licensed under the MIT license.
 """
 
 import torch
+from transformers import LogitsProcessorList
 
 from transformers4ime.data.benchmark import Benchmark, register_benchmark
+from transformers4ime.data.logits_processor.pinyingpt_compose import PinyinGPTComposeLogitsProcessor
 from transformers4ime.data.pinyin import wrap_pinyin_to_tokens
 from transformers4ime.utils.logger import LOGGER
 
@@ -37,6 +39,9 @@ class PinyinGPTComposeBenchmark(Benchmark):
         pinyin_constraint_ids = self.tokenizer.encode_plus(''.join(wrap_pinyin_to_tokens(pinyin)),
                                                            add_special_tokens=False)["input_ids"]
 
+        processors = LogitsProcessorList()
+        processors.append(PinyinGPTComposeLogitsProcessor(self.tokenizer.sep_token_id, self.opts.pc_df))
+
         outputs = self.model.generate(input_ids=torch.Tensor(context_ids).long().unsqueeze(0).to(self.model.device),
                                       pinyin_ids=torch.Tensor(pinyin_ids).long().unsqueeze(0).to(self.model.device),
                                       constraint_ids=torch.Tensor(pinyin_constraint_ids).long().unsqueeze(0).to(
@@ -46,6 +51,7 @@ class PinyinGPTComposeBenchmark(Benchmark):
                                       max_length=len(context_ids) + len(pinyin),
                                       bos_token_id=tokenizer.cls_token_id,
                                       eos_token_id=tokenizer.pad_token_id,
-                                      pad_token_id=tokenizer.pad_token_id)
+                                      pad_token_id=tokenizer.pad_token_id,
+                                      logits_processor=processors)
 
         return outputs[:, len(context_ids):]
