@@ -36,6 +36,13 @@ class MMModelArguments:
         },
     )
 
+    abbr_mode: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "The model checkpoint for weights initialization. Leave None if you want to train a model from scratch."
+        },
+    )
+
     additional_special_tokens: Optional[str] = field(
         default=None,
         metadata={

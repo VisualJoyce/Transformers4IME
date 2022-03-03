@@ -19,7 +19,7 @@ from transformers import PretrainedConfig
 from transformers4ime.data.arguments import MMModelArguments, MMTrainingArguments, MMDataTrainingArguments
 from transformers4ime.data.loaders import register_loader
 from transformers4ime.data.loaders.base import IMEBaseDataLoader
-from transformers4ime.data.pinyin import get_pinyin, get_pinyin_to_char, convert_pinyin_to_ids
+from transformers4ime.data.pinyin import get_pinyin_to_char, convert_pinyin_to_ids, get_pinyin_with_mode
 
 logger = logging.getLogger(__name__)
 
@@ -157,18 +157,18 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
             logger.warning([e, context])
             raise IndexError
 
-        pre_context_ids, pinyin_ids, abbr_ids, post_context_ids = [], [], [], []
+        pre_context_ids, pinyin_ids, post_context_ids = [], [], []
         for i, (span, text, is_zh) in enumerate(segments):
             if i < target_idx:
                 pre_context_ids.extend(self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(text)))
             else:
                 df_s = pda.DataFrame(self.tagger.cut(text), columns=self.columns)
-                df_s = df_s.assign(pinyin=df_s['词语'].apply(get_pinyin))
+                df_s = df_s.assign(
+                    pinyin=df_s['词语'].apply(lambda x: get_pinyin_with_mode(x, self.model_args.abbr_mode)))
                 for item in df_s.to_dict('records'):
                     for token, p in zip(item['词语'], item['pinyin']):
                         post_context_ids.append(self.tokenizer.convert_tokens_to_ids(token))
-                        pinyin_ids.append(convert_pinyin_to_ids(self.tokenizer, p[:-1]))  # remove the tone char
-                        abbr_ids.append(convert_pinyin_to_ids(self.tokenizer, p[0]))
+                        pinyin_ids.append(convert_pinyin_to_ids(self.tokenizer, p))
                     if len(pinyin_ids) >= target_len:
                         break
                 break
@@ -205,7 +205,6 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         pinyin_position_ids = list(range(1 + len(context_position_ids),
                                          1 + len(context_position_ids) + len(pinyin_ids)))
         position_ids = context_position_ids + pinyin_position_ids + pinyin_position_ids
-
 
         input_ids = [self.tokenizer.cls_token_id] + context_ids + [self.tokenizer.sep_token_id]
         label_ids = [-100] + label_ids + [-100]
