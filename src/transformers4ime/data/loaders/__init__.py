@@ -220,15 +220,15 @@ class MMLoader(metaclass=ABCMeta):
     def __iter__(self):
         logging.info(f"Modalities: {self.modalities}")
         while True:
-            # self.all_epochs['epoch'] += 1
-            # try:
+            self.all_epochs['epoch'] += 1
+            try:
                 for batch in PrefetchLoader(self._interchange_iter(), self.training_args.device):
                     yield batch
                     self.step += 1
-            # except tarfile.ReadError as e:
-            #     logger.warning(e)
-            # except ValueError as ve:
-            #     logger.warning(ve)
+            except tarfile.ReadError as e:
+                logger.warning(e)
+            except ValueError as ve:
+                logger.warning(ve)
 
 
 class MMModalityWiseLoader(MMLoader):

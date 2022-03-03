@@ -89,10 +89,11 @@ if __name__ == '__main__':
     else:
         ckpt = os.path.basename(args.pretrained_model_name_or_path)
 
-    result_file = os.path.join(args.output_dir,
-                               f'{args.benchmark_name}-{os.path.basename(args.samples_json)}-{args.global_step}-{args.abbr_mode}_abbr.txt')
-    inferences_file = os.path.join(args.output_dir,
-                               f'{args.benchmark_name}-{os.path.basename(args.samples_json)}-{args.global_step}-{args.abbr_mode}_abbr.json')
+    os.makedirs(os.path.join(args.output_dir, ckpt), exist_ok=True)
+
+    prefix = f'{args.benchmark_name}-{os.path.basename(args.samples_json)}-{args.global_step}-{args.abbr_mode}'
+    result_file = os.path.join(args.output_dir, ckpt, f'{prefix}_abbr.txt')
+    inferences_file = os.path.join(args.output_dir, ckpt, f'{prefix}_abbr.json')
     if not os.path.isfile(result_file) or not os.path.isfile(inferences_file):
         tb_logger = SummaryWriter(args.output_dir, filename_suffix=f'.{args.benchmark_name}')
 

@@ -64,10 +64,7 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         self.max_len = self.data_args.text_pinyin_block_size
         self.concat_mode = 'segmented'
 
-        self.valid_pinyins = [p.strip('[]') for p in
-                              json.load(
-                                  open(
-                                      "/apdcephfs/share_916081/minghuantan/p2z/pretrained/additional_special_tokens.json"))]
+        self.valid_pinyins = [p.strip('[]') for p in json.load(open(model_args.additional_special_tokens))]
         self.pat = re.compile(r"([\u4e00-\u9fa5]+)")
         self.columns = ['词语']
         if data_args.annotator_tagger == 'pkuseg':
@@ -115,9 +112,10 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         if endpos > start:
             yield (start, endpos), text[start:endpos], False
 
-    def parse_with_length(self, context, pivot):
+    def parse_with_length(self, context, pivot, target_len):
         segments = []
         candidates = collections.defaultdict(list)
+        zh_idx_list = []
         min_span_len, max_span_len = 999, 0
         for i, (span, text, is_zh) in enumerate(self.parse(context, pos=pivot)):
             if is_zh:
@@ -125,8 +123,21 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
                 min_span_len = min(min_span_len, span_len)
                 max_span_len = max(max_span_len, span_len)
                 candidates[span_len].append(i)
+                zh_idx_list.append(i)
             segments.append((span, text, is_zh))
-        return min_span_len, max_span_len, candidates, segments
+
+        span_range = min(max_span_len, max(min_span_len, target_len))
+        target_idx = None
+        for t_len in range(span_range):
+            if span_range - t_len in candidates:
+                target_idx = random.choice(candidates[span_range - t_len])
+                break
+            if span_range + t_len in candidates:
+                target_idx = random.choice(candidates[span_range + t_len])
+                break
+        if not target_idx:
+            target_idx = random.choice(zh_idx_list)
+        return segments, target_idx
 
     def build_sample(self, example):
 
@@ -140,16 +151,11 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         # we also choose abbreviations in other cases
         context = example['content']
         pivot = random.randint(0, max(0, len(context) - self.max_len))
-        min_span_len, max_span_len, candidates, segments = self.parse_with_length(context, pivot)
-
-        target_idx = None
-        for t_len in range(max(min_span_len, target_len)):
-            if target_len - t_len in candidates:
-                target_idx = random.choice(candidates[target_len - t_len])
-                break
-            if target_len + t_len in candidates:
-                target_idx = random.choice(candidates[target_len + t_len])
-                break
+        try:
+            segments, target_idx = self.parse_with_length(context, pivot, target_len)
+        except IndexError as e:
+            logger.warning([e, context])
+            raise IndexError
 
         pre_context_ids, pinyin_ids, abbr_ids, post_context_ids = [], [], [], []
         for i, (span, text, is_zh) in enumerate(segments):
@@ -178,7 +184,8 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
             post_gather_ids = [self.pc_df[p].index.to_list() for p in pinyin_ids]
         except KeyError:
             for p, c in zip(pinyin_ids, post_context_ids):
-                logger.warning(p, c, self.tokenizer.convert_ids_to_tokens([p, c]))
+                if self.pc_df[p].empty:
+                    logger.warning([p, c, self.tokenizer.convert_ids_to_tokens([p, c])])
                 # print(self.pc_df[p].loc[c])
                 # print(self.pc_df[p].loc[c].idx)
             raise KeyError
@@ -273,4 +280,6 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
             try:
                 yield self.convert_to_features(d)
             except KeyError:
+                continue
+            except IndexError:
                 continue

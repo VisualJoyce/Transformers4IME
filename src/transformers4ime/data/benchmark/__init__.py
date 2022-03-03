@@ -69,24 +69,24 @@ class Benchmark:
 
             idx = None
             start = time()
-            # try:
-            outputs = self.inference_sample(context, target)
-            target_str = ''.join(target)
-            inference = []
-            for i, o in enumerate(outputs):
-                prediction_str = self.tokenizer.decode(o).replace(' ', '')
-                LOGGER.debug(prediction_str)
-                inference.append(prediction_str)
-                if prediction_str == target_str:
-                    time_cost.append(time() - start)
-                    idx = i
-            inferences.append({
-                "context": context,
-                "target": target,
-                "inferences": inference
-            })
-            # except Exception as e:
-            #     LOGGER.info([e, context, target])
+            try:
+                outputs = self.inference_sample(context, target)
+                target_str = ''.join(target)
+                inference = []
+                for i, o in enumerate(outputs):
+                    prediction_str = self.tokenizer.decode(o).replace(' ', '')
+                    LOGGER.debug(prediction_str)
+                    inference.append(prediction_str)
+                    if prediction_str == target_str:
+                        idx = i
+                inferences.append({
+                    "context": context,
+                    "target": target,
+                    "inferences": inference
+                })
+                time_cost.append(time() - start)
+            except Exception as e:
+                LOGGER.info([e, context, target])
 
             for top_k in [1, 2, 3, 4, 5, 10]:
                 in_top_k.setdefault(top_k, [])

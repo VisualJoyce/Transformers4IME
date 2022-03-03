@@ -78,6 +78,14 @@ def main():
     # set_seed(training_args.seed)
     set_seed(training_args.seed + training_args.process_index)
 
+    if not model_args.pinyin2char_json:
+        model_args.pinyin2char_json = os.path.join(model_args.model_name_or_path,
+                                                   "pinyin2char.json")
+
+    if not model_args.additional_special_tokens:
+        model_args.additional_special_tokens = os.path.join(model_args.model_name_or_path,
+                                                            "additional_special_tokens.json")
+
     with open(model_args.additional_special_tokens) as f:
         additional_special_tokens = json.load(f)
 
@@ -148,7 +156,7 @@ def main():
                 model,
                 device_ids=[training_args.local_rank],
                 output_device=training_args.local_rank,
-                find_unused_parameters=True)
+                find_unused_parameters=False)
         model.zero_grad()
         global_step = 0
         logger.info("start iterate")
