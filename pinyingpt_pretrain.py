@@ -50,7 +50,8 @@ def main():
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     if training_args.local_rank in [-1, 0]:
-        from transformers4ime.utils.logger import TB_LOGGER
+        from transformers4ime.utils.logger import TensorboardLogger
+        TB_LOGGER = TensorboardLogger()
         TB_LOGGER.create(training_args.logging_dir)
         pbar = tqdm(total=training_args.max_steps)
     else:
@@ -204,6 +205,9 @@ def main():
                     model.module.save_pretrained(ckpt_output_dir)
                 else:
                     model.save_pretrained(ckpt_output_dir)
+
+            if global_step > training_args.max_steps:
+                break
 
 
 if __name__ == "__main__":

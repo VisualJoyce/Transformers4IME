@@ -205,6 +205,13 @@ def parse_model_name(model_name, opts):
 
 def construct_model(model_cls, opts):
     LOGGER.info(opts)
+
+    if not opts.pinyin2char_json:
+        opts.pinyin2char_json = os.path.join(opts.pretrained_model_name_or_path, "pinyin2char.json")
+
+    if not opts.additional_special_tokens:
+        opts.additional_special_tokens = os.path.join(opts.pretrained_model_name_or_path,
+                                                      "additional_special_tokens.json")
     with open(opts.additional_special_tokens) as f:
         additional_special_tokens = json.load(f)
 
@@ -246,6 +253,5 @@ def construct_model(model_cls, opts):
     opts.pad_token_id = tokenizer.pad_token_id
     opts.pc_df = get_pinyin_to_char(tokenizer, opts.pinyin2char_json, opts.pinyin_logits_processor_cls)
     opts.pinyin_start_id = tokenizer.convert_tokens_to_ids(additional_special_tokens[0])
-    opts.tokenizer = tokenizer
     LOGGER.info(model)
-    return model
+    return model, tokenizer

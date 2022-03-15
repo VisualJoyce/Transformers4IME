@@ -21,8 +21,7 @@ class Benchmark:
     def __init__(self, model_cls, opts):
         self.opts = opts
 
-        self.model = construct_model(model_cls, opts)
-        self.tokenizer = opts.tokenizer
+        self.model, self.tokenizer = construct_model(model_cls, opts)
         if opts.best_pt:
             LOGGER.info(f"Loading best checkpoint from: {opts.best_pt}")
             self.model.load_state_dict(torch.load(opts.best_pt), strict=True)

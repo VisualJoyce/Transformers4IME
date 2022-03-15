@@ -84,9 +84,6 @@ class TensorboardLogger(object):
         return self._logger.__getattribute__(name)
 
 
-TB_LOGGER = TensorboardLogger()
-
-
 class RunningMeter(object):
     """ running meteor of a scalar value
         (useful for monitoring training loss)

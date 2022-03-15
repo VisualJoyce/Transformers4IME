@@ -83,7 +83,7 @@ if __name__ == '__main__':
         parse_model_name(args.model_name, args)
 
     if args.best_pt:
-        ckpt = os.path.basename(args.best_pt.replace('/', '_'))
+        ckpt = os.path.basename(os.path.dirname(args.best_pt).replace('/', '_'))
         if '/fixed/' in args.best_pt:
             args.gpt2_fixed = True
     else:
@@ -92,8 +92,8 @@ if __name__ == '__main__':
     os.makedirs(os.path.join(args.output_dir, ckpt), exist_ok=True)
 
     prefix = f'{args.benchmark_name}-{os.path.basename(args.samples_json)}-{args.global_step}-{args.abbr_mode}'
-    result_file = os.path.join(args.output_dir, ckpt, f'{prefix}_abbr.txt')
-    inferences_file = os.path.join(args.output_dir, ckpt, f'{prefix}_abbr.json')
+    result_file = os.path.join(args.output_dir, ckpt, f'{prefix}_{ckpt}_abbr.txt')
+    inferences_file = os.path.join(args.output_dir, ckpt, f'{prefix}_{ckpt}_abbr.json')
     if not os.path.isfile(result_file) or not os.path.isfile(inferences_file):
         tb_logger = SummaryWriter(args.output_dir, filename_suffix=f'.{args.benchmark_name}')
 
