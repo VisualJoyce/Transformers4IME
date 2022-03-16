@@ -2,18 +2,139 @@ import argparse
 import json
 import logging
 import os
+from glob import glob
 
+import pandas as pda
 from torch.utils.tensorboard import SummaryWriter
+from tqdm.auto import tqdm
 
 from transformers4ime.data.benchmark import BENCHMARK_REGISTRY
 from transformers4ime.utils.logger import LOGGER
 from transformers4ime.utils.misc import parse_model_name
 
+domains = (
+    "医学问答",
+    "体育",
+    "军事",
+    "农业",
+    "国际",
+    "娱乐",
+    "房产",
+    "文化",
+    "教育",
+    "旅行",
+    "汽车",
+    "游戏",
+    "社会",
+    "科技",
+    "经济",
+    "财经",
+)
+
+sample_jsons = (
+    "_0-3_0-3",
+    "_0-3_10+",
+    "_0-3_4-9",
+    "_10+_0-3",
+    "_10+_10+",
+    "_10+_4-9",
+    "_4-9_0-3",
+    "_4-9_10+",
+    "_4-9_4-9",
+)
+
+splits = ["0-3", "4-9", "10+"]
+
+
+def benchmark_json(benchmark, samples_json, opts):
+    with open(samples_json, 'r') as f:
+        samples_final = json.load(f)
+
+    LOGGER.info(f'Total samples: {len(samples_final)}')
+
+    prefix = f'{opts.benchmark_name}-{os.path.basename(samples_json)}-{opts.abbr_mode}'
+    result_file = os.path.join(opts.output_dir, f'{prefix}.txt')
+    LOGGER.info(f'Result file: {result_file}')
+    inferences_file = os.path.join(opts.output_dir, f'{prefix}.json')
+    LOGGER.info(f'Inference file: {inferences_file}')
+    if not os.path.isfile(result_file) or not os.path.isfile(inferences_file):
+        tb_logger = SummaryWriter(opts.output_dir, filename_suffix=f'.{opts.benchmark_name}')
+
+        in_top_k, avg_time, inferences = benchmark.run_eval(samples_final)
+
+        if not opts.debug:
+            with open(result_file, 'w') as f:
+                f.write(f'average\t{avg_time}\n')
+                for top_k in in_top_k:
+                    value = sum(in_top_k[top_k]) / len(in_top_k[top_k]) * 100
+                    print(top_k, value)
+                    tb_logger.add_scalar(
+                        f'{opts.benchmark_name}-{os.path.basename(samples_json)}-{opts.abbr_mode}/top-{top_k}',
+                        value,
+                        opts.global_step)
+                    f.write(f'{top_k}\t{value}\n')
+
+            with open(inferences_file, 'w') as f:
+                json.dump(inferences, f, ensure_ascii=False, indent=4)
+
+            tb_logger.add_scalar(
+                f'{opts.benchmark_name}-{os.path.basename(samples_json)}-{opts.abbr_mode}/average-time', avg_time,
+                opts.global_step)
+            tb_logger.close()
+    else:
+        LOGGER.info(f'Evaluation is finished already at {result_file}')
+    return result_file, inferences_file
+
+
+def build_report(filenames, opts):
+    data = {}
+    for f in tqdm(filenames):
+        _, d, s1, s2, *argss = os.path.basename(f).replace(f"{args.benchmark_name}", "").split("_")
+        s2 = s2.split('.')[0]
+        #     print(d, s1, s2)
+        data.setdefault(d, {})
+        data[d].setdefault(s1, {})
+        data[d][s1].setdefault(s2, {})
+        for item in pda.read_csv(f, sep='\t', names=['key', 'value']).to_dict('records'):
+            if item['key'] in ['average', '1', '5', '10']:
+                data[d][s1][s2][item['key']] = item['value']
+
+    output = []
+    for domain in domains:
+        for k in ['average', '1', '5', '10']:
+            try:
+                ol = []
+                for s1 in splits:
+                    for s2 in splits:
+                        ol.append(data[domain][s1][s2][k])
+                output.append(f"{domain}-{k} {' '.join(map(str, ol))}")
+            except Exception as e:
+                print(domain, k, e)
+
+    with open(opts.report_path, 'w') as f:
+        for o in output:
+            f.write(o + '\n')
+
+
+def benchmark_wd(benchmark, opts):
+    results = []
+    for d in domains:
+        for sub in sample_jsons:
+            samples_json = os.path.join(opts.samples_json_dir, f"samples_{d}{sub}.json")
+            result_file, inferences_file = benchmark_json(benchmark, samples_json, opts)
+            results.append(result_file)
+
+    build_report(results, opts)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+
     parser.add_argument('--device', help='JSON config files', type=int, default=0)
     # parser.add_argument('--gpus', help='JSON config files', default='0')
-    parser.add_argument('--samples_json', help='JSON config files')
+    group.add_argument('--samples_json', default=None, help='JSON config files')
+    group.add_argument('--samples_json_dir', default=None, help='JSON config files')
     parser.add_argument('--num_beams', type=int, default=8, help='JSON config files')
     parser.add_argument('--abbr_mode', type=str, choices=['none', 'xone', 'full'],
                         help='JSON config files')
@@ -66,11 +187,6 @@ if __name__ == '__main__':
     # gpus = list(map(int, args.gpus.split(',')))
     repetition_penalty = args.repetition_penalty
 
-    with open(args.samples_json, 'r') as f:
-        samples_final = json.load(f)
-
-    LOGGER.info(f'Total samples: {len(samples_final)}')
-
     if args.model_name in ['gpt2', 'pinyingpt-compatible']:
         args.model_cls = 'pinyingpt-compatible'
         args.pinyin_logits_processor_cls = 'pinyingpt-compatible'
@@ -86,38 +202,13 @@ if __name__ == '__main__':
         ckpt = os.path.basename(os.path.dirname(args.best_pt).replace('/', '_'))
         if '/fixed/' in args.best_pt:
             args.gpt2_fixed = True
+        args.output_dir = os.path.dirname(args.best_pt)
     else:
         ckpt = os.path.basename(args.pretrained_model_name_or_path)
+        os.makedirs(os.path.join(args.output_dir, ckpt), exist_ok=True)
 
-    os.makedirs(os.path.join(args.output_dir, ckpt), exist_ok=True)
-
-    prefix = f'{args.benchmark_name}-{os.path.basename(args.samples_json)}-{args.global_step}-{args.abbr_mode}'
-    result_file = os.path.join(args.output_dir, ckpt, f'{prefix}_{ckpt}_abbr.txt')
-    inferences_file = os.path.join(args.output_dir, ckpt, f'{prefix}_{ckpt}_abbr.json')
-    if not os.path.isfile(result_file) or not os.path.isfile(inferences_file):
-        tb_logger = SummaryWriter(args.output_dir, filename_suffix=f'.{args.benchmark_name}')
-
-        benchmark = BENCHMARK_REGISTRY[args.benchmark_cls](args.model_cls, args)
-        in_top_k, avg_time, inferences = benchmark.run_eval(samples_final)
-
-        if not args.debug:
-            with open(result_file, 'w') as f:
-                f.write(f'average\t{avg_time}\n')
-                for top_k in in_top_k:
-                    value = sum(in_top_k[top_k]) / len(in_top_k[top_k]) * 100
-                    print(top_k, value)
-                    tb_logger.add_scalar(
-                        f'{args.benchmark_name}-{os.path.basename(args.samples_json)}-{args.abbr_mode}/top-{top_k}',
-                        value,
-                        args.global_step)
-                    f.write(f'{top_k}\t{value}\n')
-
-            with open(inferences_file, 'w') as f:
-                json.dump(inferences, f, ensure_ascii=False, indent=4)
-
-            tb_logger.add_scalar(
-                f'{args.benchmark_name}-{os.path.basename(args.samples_json)}-{args.abbr_mode}/average-time', avg_time,
-                args.global_step)
-            tb_logger.close()
+    bm = BENCHMARK_REGISTRY[args.benchmark_cls](args.model_cls, args)
+    if args.samples_json is not None:
+        benchmark_json(bm, args.samples_json, args)
     else:
-        LOGGER.info(f'Evaluation is finished already at {result_file}')
+        benchmark_wd(bm, args)
