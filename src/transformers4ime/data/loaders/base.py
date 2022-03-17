@@ -32,10 +32,6 @@ class IMEBaseDataLoader(object):
         self.data_args = data_args
         self.config = config
 
-        # logger.info(f"Use Clip: {self.config.use_clip}")
-        # logger.info(f"Video num patches {self.config.video_num_patches}")
-        # logger.info(f"Image num patches {self.config.image_num_patches}")
-
     @staticmethod
     def get_shards(train_files):
         shards = []

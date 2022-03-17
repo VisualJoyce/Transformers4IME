@@ -2,7 +2,6 @@ import argparse
 import json
 import logging
 import os
-from glob import glob
 
 import pandas as pda
 from torch.utils.tensorboard import SummaryWriter
@@ -10,7 +9,6 @@ from tqdm.auto import tqdm
 
 from transformers4ime.data.benchmark import BENCHMARK_REGISTRY
 from transformers4ime.utils.logger import LOGGER
-from transformers4ime.utils.misc import parse_model_name
 
 domains = (
     "医学问答",
@@ -196,7 +194,10 @@ if __name__ == '__main__':
         args.pinyin_logits_processor_cls = 'pinyin-cpm-compatible'
         args.benchmark_cls = 'pinyin-cpm-compatible'
     else:
-        parse_model_name(args.model_name, args)
+        args.model_cls = args.benchmark_cls = args.model_name
+        args.concat_mode = "segmented"
+        args.position_mode = "aligned"
+    #     parse_model_name(args.model_name, args)
 
     if args.best_pt:
         ckpt = os.path.basename(os.path.dirname(args.best_pt).replace('/', '_'))

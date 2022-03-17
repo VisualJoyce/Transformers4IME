@@ -12,8 +12,9 @@ import re
 import pandas as pda
 import torch
 import webdataset as wds
-from more_itertools import unzip
+from more_itertools import unzip, flatten
 from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader
 from transformers import PretrainedConfig
 
 from transformers4ime.data.arguments import MMModelArguments, MMTrainingArguments, MMDataTrainingArguments
@@ -63,6 +64,7 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         self.batch_size = self.training_args.text_pinyin_per_device_train_batch_size
         self.max_len = self.data_args.text_pinyin_block_size
         self.concat_mode = 'segmented'
+        self.position_mode = 'aligned'  # aligned or incremental
 
         self.valid_pinyins = [p.strip('[]') for p in json.load(open(model_args.additional_special_tokens))]
         self.pat = re.compile(r"([\u4e00-\u9fa5]+)")
@@ -112,34 +114,37 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         if endpos > start:
             yield (start, endpos), text[start:endpos], False
 
-    def parse_with_length(self, context, pivot, target_len):
+    def parse_with_length(self, context, pivot):
         segments = []
         candidates = collections.defaultdict(list)
         zh_idx_list = []
         min_span_len, max_span_len = 999, 0
-        for i, (span, text, is_zh) in enumerate(self.parse(context, pos=pivot)):
+        for span, text, is_zh in self.parse(context, pos=pivot):
+            span_len = span[1] - span[0]
             if is_zh:
-                span_len = span[1] - span[0]
                 min_span_len = min(min_span_len, span_len)
                 max_span_len = max(max_span_len, span_len)
-                candidates[span_len].append(i)
-                zh_idx_list.append(i)
+                candidates[span_len].append(len(segments))
+                zh_idx_list.append(len(segments))
+            else:
+                if span_len > 80 or len(text.split()) > 10:
+                    continue
             segments.append((span, text, is_zh))
 
-        span_range = min(max_span_len, max(min_span_len, target_len))
-        target_idx = None
-        for t_len in range(span_range):
-            if span_range - t_len in candidates:
-                target_idx = random.choice(candidates[span_range - t_len])
-                break
-            if span_range + t_len in candidates:
-                target_idx = random.choice(candidates[span_range + t_len])
-                break
-        if not target_idx:
-            target_idx = random.choice(zh_idx_list)
-        return segments, target_idx
+        return segments, zh_idx_list, candidates
 
     def build_sample(self, example):
+        example = example['json']
+
+        # we also choose abbreviations in other cases
+        context = example['content'].replace('\n', '')
+        if len(context) < 10:
+            raise ValueError(f"Too short context: {len(context)}")
+
+        pivot = random.randint(0, max(0, len(context) - self.max_len))
+        segments, zh_idx_list, candidates = self.parse_with_length(context, pivot)
+        if len(segments) == 0:
+            raise ValueError(f"No segments from context: {context[pivot:]}")
 
         prob = random.random()
         # we use 1, 2, 3 words as target randomly
@@ -148,46 +153,51 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         else:
             target_len = random.randint(6, 25)
 
-        # we also choose abbreviations in other cases
-        context = example['content']
-        pivot = random.randint(0, max(0, len(context) - self.max_len))
-        try:
-            segments, target_idx = self.parse_with_length(context, pivot, target_len)
-        except IndexError as e:
-            logger.warning([e, context])
-            raise IndexError
+        allowed = list(flatten([v for k, v in candidates.items() if k > target_len]))
+        if len(allowed) > 0:
+            target_idx = random.choice(allowed)
+        else:
+            target_len = max(candidates)
+            target_idx = random.choice(candidates[target_len])
 
-        pre_context_ids, pinyin_ids, post_context_ids = [], [], []
-        for i, (span, text, is_zh) in enumerate(segments):
-            if i < target_idx:
-                pre_context_ids.extend(self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(text)))
-            else:
-                df_s = pda.DataFrame(self.tagger.cut(text), columns=self.columns)
-                df_s = df_s.assign(
-                    pinyin=df_s['词语'].apply(lambda x: get_pinyin_with_mode(x, self.model_args.abbr_mode)))
-                for item in df_s.to_dict('records'):
-                    for token, p in zip(item['词语'], item['pinyin']):
-                        post_context_ids.append(self.tokenizer.convert_tokens_to_ids(token))
-                        pinyin_ids.append(convert_pinyin_to_ids(self.tokenizer, p))
-                    if len(pinyin_ids) >= target_len:
-                        break
-                break
+        pre_context_ids = list(flatten(
+            [self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(text)) for _, text, _ in
+             segments[:target_idx]]))
+
+        _, text, _ = segments[target_idx]
+        df_s = pda.DataFrame(self.tagger.cut(text), columns=self.columns)
+        df_s = df_s.assign(
+            pinyin=df_s['词语'].apply(lambda x: get_pinyin_with_mode(x, self.model_args.abbr_mode)))
+        word_boundary = []
+        in_context_ids = []
+        in_pinyin_ids = []
+        for j, item in enumerate(df_s.to_dict('records')):
+            offset_start = len(in_context_ids)
+            for token, p in zip(item['词语'], item['pinyin']):
+                in_context_ids.append(self.tokenizer.convert_tokens_to_ids(token))
+                in_pinyin_ids.append(convert_pinyin_to_ids(self.tokenizer, p))
+            offset_end = len(in_context_ids)
+            word_boundary.append((offset_start, offset_end))
+
+        start_idx = random.choice([s for s, e in word_boundary if len(in_context_ids) - s >= target_len])
+        end_idx = [e for s, e in word_boundary if e - start_idx >= target_len][0]
+
+        pre_context_ids = pre_context_ids + in_context_ids[:start_idx]
+        post_context_ids = in_context_ids[start_idx:end_idx]
+        pinyin_ids = in_pinyin_ids[start_idx:end_idx]
 
         if len(pre_context_ids) > self.max_len - len(pinyin_ids) * 2:
-            pre_context_len = len(pre_context_ids) - (self.max_len - len(pinyin_ids) * 2)
-            pre_context_ids = pre_context_ids[pre_context_len:]
+            pre_context_start = len(pre_context_ids) - (self.max_len - len(pinyin_ids) * 2)
+            pre_context_ids = pre_context_ids[pre_context_start:]
 
         try:
             post_label_ids = [-100 if c == self.tokenizer.unk_token_id else self.pc_df[p].loc[c].idx for p, c in
                               zip(pinyin_ids, post_context_ids)]
-            # post_label_ids = [self.pc_df[p].loc[c].idx for p, c in zip(pinyin_ids, post_context_ids)]
             post_gather_ids = [self.pc_df[p].index.to_list() for p in pinyin_ids]
         except KeyError:
             for p, c in zip(pinyin_ids, post_context_ids):
-                if self.pc_df[p].empty:
-                    logger.warning([p, c, self.tokenizer.convert_ids_to_tokens([p, c])])
-                # print(self.pc_df[p].loc[c])
-                # print(self.pc_df[p].loc[c].idx)
+                if c not in self.pc_df[p].index:
+                    raise KeyError(f"{p} {c} {self.tokenizer.convert_ids_to_tokens([p, c])}")
             raise KeyError
 
         assert len(pinyin_ids) == len(post_context_ids)
@@ -219,7 +229,20 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         position_ids = torch.tensor(position_ids)
         attention_mask = torch.tensor(attention_mask)
 
-        return input_ids, attention_mask, label_ids, gather_ids, max(map(len, gather_ids))
+        if self.position_mode == 'incremental':
+            return input_ids, attention_mask, label_ids, gather_ids, max(map(len, gather_ids))
+        else:
+            return input_ids, attention_mask, label_ids, gather_ids, max(map(len, gather_ids)), position_ids
+
+    def wrap_build_sample(self, example):
+        try:
+            return self.build_sample(example)
+        except Exception as e:
+            logger.warning([e, example])
+            if self.position_mode == 'incremental':
+                return [None] * 5
+            else:
+                return [None] * 6
 
     @staticmethod
     def collate_fn(inputs):
@@ -262,23 +285,10 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
 
         return batch
 
-    def convert_to_features(self, data):
-        inputs = [self.build_sample(item) for item in data]
-        return self.collate_fn(inputs)
-
     def __iter__(self):
         assert len(self.shards) >= self.training_args.world_size  # guarantee at least one shard for each device
         logging.info(f"Constructing data loader for text pinyin: {len(self.shards)}")
-        dataset = (
-            wds.WebDataset(self.shards)
-                .shuffle(1000)
-                .decode()
-                .to_tuple("json")
-        )
-        for d, in dataset.batched(self.batch_size):
-            try:
-                yield self.convert_to_features(d)
-            except KeyError:
-                continue
-            except IndexError:
-                continue
+        dataset = wds.WebDataset(self.shards).shuffle(1000).decode().map(self.wrap_build_sample)
+        for batch in DataLoader(dataset, num_workers=8, batch_size=self.batch_size,
+                                collate_fn=self.collate_fn):
+            yield batch
