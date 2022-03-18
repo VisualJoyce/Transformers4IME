@@ -186,6 +186,9 @@ class IMETextPinyinDataLoader(IMEBaseDataLoader):
         post_context_ids = in_context_ids[start_idx:end_idx]
         pinyin_ids = in_pinyin_ids[start_idx:end_idx]
 
+        if len(pinyin_ids) * 2 > self.max_len:
+            raise ValueError(f"Pinyin too long: {(start_idx, end_idx)}")
+
         if len(pre_context_ids) > self.max_len - len(pinyin_ids) * 2:
             pre_context_start = len(pre_context_ids) - (self.max_len - len(pinyin_ids) * 2)
             pre_context_ids = pre_context_ids[pre_context_start:]
