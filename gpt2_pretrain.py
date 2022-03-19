@@ -47,7 +47,7 @@ def main():
     parser = HfArgumentParser((MMModelArguments, MMDataTrainingArguments, MMTrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    if training_args.local_rank in [-1, 0]:
+    if training_args.process_index in [-1, 0]:
         from transformers4ime.utils.logger import TensorboardLogger
         TB_LOGGER = TensorboardLogger()
         TB_LOGGER.create(training_args.logging_dir)
