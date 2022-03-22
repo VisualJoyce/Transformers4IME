@@ -1,20 +1,30 @@
 ![IME](ime_logo.png)
 # Transformers4IME
 
-```shell
-           _____ _               ____             _____ __  __ _    _   _____  _____ 
-     /\   |_   _| |        /\   |  _ \     _     / ____|  \/  | |  | | / ____|/ ____|
-    /  \    | | | |       /  \  | |_) |  _| |_  | (___ | \  / | |  | || (___ | |  __ 
-   / /\ \   | | | |      / /\ \ |  _ <  |_   _|  \___ \| |\/| | |  | | \___ \| | |_ |
-  / ____ \ _| |_| |____ / ____ \| |_) |   |_|    ____) | |  | | |__| | ____) | |__| |
- /_/    \_\_____|______/_/    \_\____/          |_____/|_|  |_|\____(_)_____/ \_____|
+*其他语言版本: [English](README.en.md)
 
+Transformers4IME是尝试将预训练模型运用于输入法的软件包。
+
+## PinyinGPT
+
+PinyinGPT模型源于我们发表于ACL2022的工作 [Exploring and Adapting Chinese GPT to Pinyin Input Method](https://arxiv.org/abs/2203.00249) 。
+```bibtex
+@article{tan2022exploring,
+  title={Exploring and Adapting Chinese GPT to Pinyin Input Method},
+  author={Tan, Minghuan and Dai, Yong and Tang, Duyu and Feng, Zhangyin and Huang, Guoping and Jiang, Jing and Li, Jiwei and Shi, Shuming},
+  journal={arXiv preprint arXiv:2203.00249},
+  year={2022}
+}
 ```
+本文主要研究了将中文GPT的预训练模型适配到拼音输入法的问题。我们发现，在GPT的广泛使用中，仍然缺少对拼音输入法的探索。
+经过对生成过程加上拼音的限制，全拼场景下的GPT的效果十分突出，在传统的数据集上就能达到SOTA。
+然而，对于首字母的情形，GPT的效果出现大幅下滑，这与同声母字的候选大幅增加相关。
+我们采取两种策略来解决这个问题，一方面让模型充分使用上下文信息和拼音信息，另一方面增强训练过程中对同声母字的辨析。
+为了助力拼音输入法的评测，我们基于最新的语料，构建了跨15个新闻领域的270k的测试集合，集合的样本覆盖多种上文的长度和预测长度组合。
+通过对模型的分析和消融，我们发现模型的两个策略都对最后的效果有促进作用。
+实验结果对输入法的研究具有参考意义。
 
-Transformers4IME是尝试将GPT运用于汉字输入法儿开发的预训练模型。
-
-## 语料整理
-
+###语料整理
 例如，处理拼音的相关语料时, 我们会得到如下数据格式
 ```python
 {'words': [['观众', '姥爷'], ['，'], ['如果', '你', '有', '超神', '超', '秀'], ['、'], ['坑爹', '搞笑', '素材'], ['，'],
@@ -47,7 +57,7 @@ PYTHONPATH=src RAW_DIR=data/raw ANNOTATION_DIR=data/annotations_db TXT_DIR=data/
 PYTHONPATH=src RAW_DIR=data/raw ANNOTATION_DIR=data/annotations_db2 TXT_DIR=data/txt_db ANNOTATOR_TAGGER=whitespace ADDITIONAL_SPECIAL_TOKENS=data/pretrained/additional_special_tokens.json PRETRAINED_MODEL_NAME_OR_PATH=data/pretrained/uer/gpt2-chinese-cluecorpussmall python convert.py --domain 300g_word --genre train.txt07 --config=config/gpt2zh/pretrain_pinyin.json --use_proxy --split train
 ```
 
-## 模型列表
+### 模型列表
 
 * GPT2
 * PinyinGPT2Concat
@@ -60,23 +70,17 @@ PYTHONPATH=src RAW_DIR=data/raw ANNOTATION_DIR=data/annotations_db2 TXT_DIR=data
         * states
         * residual
 
-## 训练模式
+### 训练模式
 
 * AbbrOnly 全缩写
 * PinyinOnly 全拼音
 * PinyinAbbr 混合模式
 
-## 开始训练
+### 开始训练
 
-物理机上直接使用docker
-
-## 基线测试
-
-```shell
-PYTHONPATH=src python benchmarks.py --pretrained_model_name_or_path=data/pretrained/uer/gpt2-chinese-cluecorpussmall --abbr_mode=full --raw_dir data/raw --samples_json data/raw/wudao/samples_医学问答.json --num_beams 16 --num_processes 12 --best_pt /apdcephfs/share_916081/yongdai/linyang_600/transformers/model/ckpt1075000/pytorch_model.bin --additional_special_tokens=data/pretrained/additional_special_tokens.json --gpus 3,4,7
-```
+### 基线测试
 
 支持对特定模型的特定checkpoint进行评测
 ```shell
-CUDA_VISIBLE_DEVICES=6 PYTHONPATH=src python benchmarks.py --pretrained_model_name_or_path=data/pretrained/uer/gpt2-chinese-cluecorpussmall --abbr_mode=full --raw_dir data/raw --samples_json data/raw/benchmarks/PD/samples_0.json --best_pt data/output/pinyin-gpt2-compose-top-abbr-only/ckpt1075000/8gpu_lr-1e-05_accu-8_100000steps/max-prefix-0_max-len-128/finetune/nlpcB3935B26031B427F9E64B3ADEF8F/e4ccc2707bbe335b017bdf9e926c3cf0/ckpt/model_step_2000.pt --num_beams 16 --num_processes 16 --model_name pinyin-gpt2-compose-top-abbr-only --additional_special_tokens=data/pretrained/additional_special_tokens.json
+sh benchmarks.sh pinyingpt-concat data/output/pinyingpt data/output/models/ckpt50000/pytorch_model.bin
 ```

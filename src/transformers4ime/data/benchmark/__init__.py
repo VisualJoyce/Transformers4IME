@@ -87,15 +87,10 @@ class Benchmark:
             except Exception as e:
                 LOGGER.info([e, context, target])
 
-            for top_k in [1, 2, 3, 4, 5, 10]:
+            for top_k in [1, 5, 10]:
                 in_top_k.setdefault(top_k, [])
                 score = 1 if idx is not None and idx < top_k else 0
                 in_top_k[top_k].append(score)
-            LOGGER.debug(in_top_k)
-
-        for top_k in in_top_k:
-            value = sum(in_top_k[top_k]) / len(in_top_k[top_k]) * 100
-            LOGGER.info([top_k, value])
 
         avg_time = sum(time_cost) / len(time_cost) * 1000
         LOGGER.info(f"Time Cost: {avg_time} ms")

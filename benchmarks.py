@@ -50,7 +50,7 @@ def benchmark_json(benchmark, samples_json, opts):
 
     LOGGER.info(f'Total samples: {len(samples_final)}')
 
-    prefix = f'{opts.benchmark_name}-{os.path.basename(samples_json)}-{opts.abbr_mode}'
+    prefix = f'{opts.benchmark_name}-{os.path.basename(samples_json)}-{opts.abbr_mode}-{opts.global_step}'
     result_file = os.path.join(opts.output_dir, f'{prefix}.txt')
     LOGGER.info(f'Result file: {result_file}')
     inferences_file = os.path.join(opts.output_dir, f'{prefix}.json')
@@ -65,12 +65,13 @@ def benchmark_json(benchmark, samples_json, opts):
                 f.write(f'average\t{avg_time}\n')
                 for top_k in in_top_k:
                     value = sum(in_top_k[top_k]) / len(in_top_k[top_k]) * 100
-                    print(top_k, value)
                     tb_logger.add_scalar(
                         f'{opts.benchmark_name}-{os.path.basename(samples_json)}-{opts.abbr_mode}/top-{top_k}',
                         value,
                         opts.global_step)
                     f.write(f'{top_k}\t{value}\n')
+                    LOGGER.info(
+                        [f'{opts.benchmark_name}-{os.path.basename(samples_json)}-{opts.abbr_mode}', top_k, value])
 
             with open(inferences_file, 'w') as f:
                 json.dump(inferences, f, ensure_ascii=False, indent=4)
@@ -87,9 +88,7 @@ def benchmark_json(benchmark, samples_json, opts):
 def build_report(filenames, opts):
     data = {}
     for f in tqdm(filenames):
-        _, d, s1, s2, *argss = os.path.basename(f).replace(f"{args.benchmark_name}", "").split("_")
-        s2 = s2.split('.')[0]
-        #     print(d, s1, s2)
+        _, d, s1, s2, *argss = os.path.basename(f).replace(".json", '_').split("_")
         data.setdefault(d, {})
         data[d].setdefault(s1, {})
         data[d][s1].setdefault(s2, {})
@@ -109,7 +108,8 @@ def build_report(filenames, opts):
             except Exception as e:
                 print(domain, k, e)
 
-    with open(opts.report_path, 'w') as f:
+    report_file = os.path.join(opts.output_dir, f'report.txt')
+    with open(report_file, 'w') as f:
         for o in output:
             f.write(o + '\n')
 
@@ -200,13 +200,14 @@ if __name__ == '__main__':
     #     parse_model_name(args.model_name, args)
 
     if args.best_pt:
-        ckpt = os.path.basename(os.path.dirname(args.best_pt).replace('/', '_'))
         if '/fixed/' in args.best_pt:
             args.gpt2_fixed = True
-        args.output_dir = os.path.dirname(args.best_pt)
-    else:
-        ckpt = os.path.basename(args.pretrained_model_name_or_path)
-        os.makedirs(os.path.join(args.output_dir, ckpt), exist_ok=True)
+        ckpt_dir = os.path.dirname(args.best_pt)
+        models_dir = os.path.dirname(ckpt_dir)
+        job_dir = os.path.dirname(models_dir)
+        args.output_dir = os.path.join(job_dir, 'logs')
+        ckpt = os.path.basename(os.path.dirname(args.best_pt).replace('ckpt', ''))
+        args.global_step = int(ckpt)
 
     bm = BENCHMARK_REGISTRY[args.benchmark_cls](args.model_cls, args)
     if args.samples_json is not None:
