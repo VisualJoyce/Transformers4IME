@@ -24,7 +24,7 @@ PinyinGPT模型源于我们发表于ACL2022的工作 [Exploring and Adapting Chi
 通过对模型的分析和消融，我们发现模型的两个策略都对最后的效果有促进作用。
 实验结果对输入法的研究具有参考意义。
 
-###语料整理
+_语料整理_
 例如，处理拼音的相关语料时, 我们会得到如下数据格式
 ```python
 {'words': [['观众', '姥爷'], ['，'], ['如果', '你', '有', '超神', '超', '秀'], ['、'], ['坑爹', '搞笑', '素材'], ['，'],
@@ -57,7 +57,7 @@ PYTHONPATH=src RAW_DIR=data/raw ANNOTATION_DIR=data/annotations_db TXT_DIR=data/
 PYTHONPATH=src RAW_DIR=data/raw ANNOTATION_DIR=data/annotations_db2 TXT_DIR=data/txt_db ANNOTATOR_TAGGER=whitespace ADDITIONAL_SPECIAL_TOKENS=data/pretrained/additional_special_tokens.json PRETRAINED_MODEL_NAME_OR_PATH=data/pretrained/uer/gpt2-chinese-cluecorpussmall python convert.py --domain 300g_word --genre train.txt07 --config=config/gpt2zh/pretrain_pinyin.json --use_proxy --split train
 ```
 
-### 模型列表
+_模型列表_
 
 * GPT2
 * PinyinGPT2Concat
@@ -70,17 +70,22 @@ PYTHONPATH=src RAW_DIR=data/raw ANNOTATION_DIR=data/annotations_db2 TXT_DIR=data
         * states
         * residual
 
-### 训练模式
+_训练模式_
 
 * AbbrOnly 全缩写
 * PinyinOnly 全拼音
 * PinyinAbbr 混合模式
 
-### 开始训练
+```shell
+sh pretrain_pinyingpt.sh
+```
 
-### 基线测试
+_基线测试_
 
 支持对特定模型的特定checkpoint进行评测
 ```shell
 sh benchmarks.sh pinyingpt-concat data/output/pinyingpt data/output/models/ckpt50000/pytorch_model.bin
 ```
+
+_鸣谢_
+该工作在腾讯AI Lab实习期间完成。

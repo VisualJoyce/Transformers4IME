@@ -29,7 +29,7 @@ we create a dataset consisting of 270K instances from 15 domains.
 Results show that our approach improves performance on abbreviated pinyin across all domains. 
 Model analysis demonstrates that both strategies contribute to the performance boost.
 
-### Corpus Preparation
+_Corpus Preparation_
 ```python
 {'words': [['观众', '姥爷'], ['，'], ['如果', '你', '有', '超神', '超', '秀'], ['、'], ['坑爹', '搞笑', '素材'], ['，'],
            ['欢迎', '给', '苍', '姐', '投稿'], ['，'], ['采用', '有奖', '哦'], ['！']],
@@ -48,7 +48,7 @@ Model analysis demonstrates that both strategies contribute to the performance b
           [['c', 'y'], ['y', 'j'], ['o']], ['！']]}
 ```
 
-### Model List
+_Model List_
 
 * GPT2
 * PinyinGPT2Concat
@@ -61,16 +61,21 @@ Model analysis demonstrates that both strategies contribute to the performance b
         * states
         * residual
 
-### Training Mode
+_Training Mode_
 
 * AbbrOnly: full abbreviation
 * PinyinOnly: none abbreviation
-* PinyinAbbr mixed
+* PinyinAbbr: mixed (not covered in this paper)
 
-### Start Training
+```shell
+sh pretrain_pinyingpt.sh
+```
 
-### Benchmarking
+_Benchmarking_
 
 ```shell
 sh benchmarks.sh pinyingpt-concat data/output/pinyingpt data/output/models/ckpt50000/pytorch_model.bin
 ```
+
+_Acknowledgment_
+Work done during internship at Tencent AI Lab.
