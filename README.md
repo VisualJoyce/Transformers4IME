@@ -25,6 +25,7 @@ PinyinGPT模型源于我们发表于ACL2022的工作 [Exploring and Adapting Chi
 实验结果对输入法的研究具有参考意义。
 
 _语料整理_
+
 例如，处理拼音的相关语料时, 我们会得到如下数据格式
 ```python
 {'words': [['观众', '姥爷'], ['，'], ['如果', '你', '有', '超神', '超', '秀'], ['、'], ['坑爹', '搞笑', '素材'], ['，'],
@@ -88,4 +89,5 @@ sh benchmarks.sh pinyingpt-concat data/output/pinyingpt data/output/models/ckpt5
 ```
 
 _鸣谢_
+
 该工作在腾讯AI Lab实习期间完成。

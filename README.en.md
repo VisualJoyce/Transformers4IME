@@ -30,6 +30,7 @@ Results show that our approach improves performance on abbreviated pinyin across
 Model analysis demonstrates that both strategies contribute to the performance boost.
 
 _Corpus Preparation_
+
 ```python
 {'words': [['观众', '姥爷'], ['，'], ['如果', '你', '有', '超神', '超', '秀'], ['、'], ['坑爹', '搞笑', '素材'], ['，'],
            ['欢迎', '给', '苍', '姐', '投稿'], ['，'], ['采用', '有奖', '哦'], ['！']],
@@ -78,4 +79,5 @@ sh benchmarks.sh pinyingpt-concat data/output/pinyingpt data/output/models/ckpt5
 ```
 
 _Acknowledgment_
+
 Work done during internship at Tencent AI Lab.
