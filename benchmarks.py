@@ -108,7 +108,8 @@ def build_report(filenames, opts):
             except Exception as e:
                 print(domain, k, e)
 
-    report_file = os.path.join(opts.output_dir, f'report.txt')
+    prefix = f'{opts.benchmark_name}-{opts.abbr_mode}-{opts.global_step}'
+    report_file = os.path.join(opts.output_dir, f'{prefix}_report.txt')
     with open(report_file, 'w') as f:
         for o in output:
             f.write(o + '\n')

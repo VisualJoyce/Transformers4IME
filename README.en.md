@@ -29,6 +29,8 @@ we create a dataset consisting of 270K instances from 15 domains.
 Results show that our approach improves performance on abbreviated pinyin across all domains. 
 Model analysis demonstrates that both strategies contribute to the performance boost.
 
+![PinyinGPT](pinyingpt.png)
+
 _Corpus Preparation_
 
 ```python

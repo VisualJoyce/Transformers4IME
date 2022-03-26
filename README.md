@@ -24,6 +24,8 @@ PinyinGPT模型源于我们发表于ACL2022的工作 [Exploring and Adapting Chi
 通过对模型的分析和消融，我们发现模型的两个策略都对最后的效果有促进作用。
 实验结果对输入法的研究具有参考意义。
 
+![PinyinGPT](pinyingpt.png)
+
 _语料整理_
 
 例如，处理拼音的相关语料时, 我们会得到如下数据格式
