@@ -85,6 +85,11 @@ sh pretrain_pinyingpt.sh
 
 _基线测试_
 
+* [百度网盘](链接：https://pan.baidu.com/s/1YEG54GSRfPzKO2gQD1IiHw?pwd=7j6v)
+
+![99E333F0B1C6D7B67ACB9D9E61A73DA8](https://user-images.githubusercontent.com/2136700/160289844-924ef07f-b983-4e9c-b07a-45ad042e17da.png)
+
+
 PD基线测试
 ```shell
 python3 benchmarks.py --samples_json data/benchmarks/PD/samples_0.json \
