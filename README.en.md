@@ -1,4 +1,4 @@
-![IME](ime_logo.png)
+![ime](https://user-images.githubusercontent.com/2136700/160290194-4f30a796-876a-4750-bb3b-b5b62c4676c5.png)
 # Transformers4IME
 
 Transformers4IME is repo for exploring and adapting transformer-based models to IME.
@@ -29,7 +29,7 @@ we create a dataset consisting of 270K instances from 15 domains.
 Results show that our approach improves performance on abbreviated pinyin across all domains. 
 Model analysis demonstrates that both strategies contribute to the performance boost.
 
-![PinyinGPT](pinyingpt.png)
+![pinyinGPT-method](https://user-images.githubusercontent.com/2136700/160290180-ad531d81-4d47-48a9-a924-001780d5c5cf.png)
 
 _Corpus Preparation_
 
