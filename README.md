@@ -85,9 +85,21 @@ sh pretrain_pinyingpt.sh
 
 _基线测试_
 
+PD基线测试
+```shell
+python3 benchmarks.py --samples_json data/benchmarks/PD/samples_0.json \
+  --pretrained_model_name_or_path data/pretrained_models/gpt2-zh-ours \
+  --additional_special_tokens data/pretrained/additional_special_tokens.json \
+  --pinyin2char_json data/pretrained/pinyin2char.json \
+  --pinyin_logits_processor_cls pinyingpt-compatible \
+  --num_beams 16 \
+  --abbr_mode none
+```
+
 支持对特定模型的特定checkpoint进行评测
 ```shell
-sh benchmarks.sh pinyingpt-concat data/output/pinyingpt data/output/models/ckpt50000/pytorch_model.bin
+sh benchmarks.sh pinyingpt-concat data/output/pinyingpt \
+  data/output/models/ckpt50000/pytorch_model.bin
 ```
 
 _鸣谢_
