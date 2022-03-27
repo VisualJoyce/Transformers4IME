@@ -78,7 +78,7 @@ _Benchmarking_
 
 Benchmarking dataset is shared via:
 
-* [百度网盘](链接：https://pan.baidu.com/s/1YEG54GSRfPzKO2gQD1IiHw?pwd=7j6v)
+* [百度网盘](https://pan.baidu.com/s/1YEG54GSRfPzKO2gQD1IiHw?pwd=7j6v)
 
 ![99E333F0B1C6D7B67ACB9D9E61A73DA8](https://user-images.githubusercontent.com/2136700/160289844-924ef07f-b983-4e9c-b07a-45ad042e17da.png)
 
