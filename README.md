@@ -1,4 +1,4 @@
-![IME](ime_logo.png)
+![ime](https://user-images.githubusercontent.com/2136700/160290194-4f30a796-876a-4750-bb3b-b5b62c4676c5.png)
 # Transformers4IME
 
 *其他语言版本: [English](README.en.md)
@@ -24,7 +24,7 @@ PinyinGPT模型源于我们发表于ACL2022的工作 [Exploring and Adapting Chi
 通过对模型的分析和消融，我们发现模型的两个策略都对最后的效果有促进作用。
 实验结果对输入法的研究具有参考意义。
 
-![PinyinGPT](pinyingpt.png)
+![pinyinGPT-method](https://user-images.githubusercontent.com/2136700/160290180-ad531d81-4d47-48a9-a924-001780d5c5cf.png)
 
 _语料整理_
 
