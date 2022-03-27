@@ -54,9 +54,11 @@ _Corpus Preparation_
 _Model List_
 
 * GPT2
+    * GPT2-Public (uer/gpt2-chinese-cluecorpussmall) [🤗 models](https://huggingface.co/uer/gpt2-chinese-cluecorpussmall)
+    * GPT2-Ours (visualjoyce/gpt2-zh-21k) [🤗 models](https://huggingface.co/visualjoyce/gpt2-zh-21k)
 * PinyinGPT2Concat
     * Directly
-    * Segmented
+    * Segmented (visualjoyce/transformers4ime-pinyingpt-concat) [🤗 models](https://huggingface.co/visualjoyce/transformers4ime-pinyingpt-concat)
 * PinyinGPT2Compose
     * PinyinGPT2ComposeBottom
     * PinyinGPT2ComposeTop
