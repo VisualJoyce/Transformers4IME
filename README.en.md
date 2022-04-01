@@ -55,10 +55,10 @@ _Model List_
 
 * GPT2
     * GPT2-Public (uer/gpt2-chinese-cluecorpussmall) [🤗 models](https://huggingface.co/uer/gpt2-chinese-cluecorpussmall)
-    * GPT2-Ours (visualjoyce/gpt2-zh-21k) [🤗 models](https://huggingface.co/visualjoyce/gpt2-zh-21k)
+    * GPT2-Ours (visualjoyce/gpt2-zh-21k) [🤗 models](https://huggingface.co/aihijo/gpt2-zh-21k)
 * PinyinGPT2Concat
     * Directly
-    * Segmented (visualjoyce/transformers4ime-pinyingpt-concat) [🤗 models](https://huggingface.co/visualjoyce/transformers4ime-pinyingpt-concat)
+    * Segmented (visualjoyce/transformers4ime-pinyingpt-concat) [🤗 models](https://huggingface.co/aihijo/transformers4ime-pinyingpt-concat)
 * PinyinGPT2Compose
     * PinyinGPT2ComposeBottom
     * PinyinGPT2ComposeTop
