@@ -9,11 +9,25 @@ Transformers4IME是尝试将预训练模型运用于输入法的软件包。
 
 PinyinGPT模型源于我们发表于ACL2022的工作 [Exploring and Adapting Chinese GPT to Pinyin Input Method](https://arxiv.org/abs/2203.00249) 。
 ```bibtex
-@article{tan2022exploring,
-  title={Exploring and Adapting Chinese GPT to Pinyin Input Method},
-  author={Tan, Minghuan and Dai, Yong and Tang, Duyu and Feng, Zhangyin and Huang, Guoping and Jiang, Jing and Li, Jiwei and Shi, Shuming},
-  journal={arXiv preprint arXiv:2203.00249},
-  year={2022}
+@inproceedings{tan-etal-2022-exploring,
+    title = "Exploring and Adapting {C}hinese {GPT} to {P}inyin Input Method",
+    author = "Tan, Minghuan  and
+      Dai, Yong  and
+      Tang, Duyu  and
+      Feng, Zhangyin  and
+      Huang, Guoping  and
+      Jiang, Jing  and
+      Li, Jiwei  and
+      Shi, Shuming",
+    booktitle = "Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+    month = may,
+    year = "2022",
+    address = "Dublin, Ireland",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2022.acl-long.133",
+    doi = "10.18653/v1/2022.acl-long.133",
+    pages = "1899--1909",
+    abstract = "While GPT has become the de-facto method for text generation tasks, its application to pinyin input method remains unexplored.In this work, we make the first exploration to leverage Chinese GPT for pinyin input method.We find that a frozen GPT achieves state-of-the-art performance on perfect pinyin.However, the performance drops dramatically when the input includes abbreviated pinyin.A reason is that an abbreviated pinyin can be mapped to many perfect pinyin, which links to even larger number of Chinese characters.We mitigate this issue with two strategies,including enriching the context with pinyin and optimizing the training process to help distinguish homophones. To further facilitate the evaluation of pinyin input method, we create a dataset consisting of 270K instances from fifteen domains.Results show that our approach improves the performance on abbreviated pinyin across all domains.Model analysis demonstrates that both strategiescontribute to the performance boost.",
 }
 ```
 本文主要研究了将中文GPT的预训练模型适配到拼音输入法的问题。我们发现，在GPT的广泛使用中，仍然缺少对拼音输入法的探索。
